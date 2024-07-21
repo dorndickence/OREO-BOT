@@ -7,12 +7,12 @@ import fs from 'fs'
 //OwnerShip
 global.owner = [
   [process.env.OWNER_NUMBER || '254113907065', process.env.OWNER_NAME || 'Dornavan  🤖', true],
-  ['919637987574', 'Shizo Techie ❤️✨', true]
+ 
 ]
 global.mods = []
 global.prems = []
 
-global.author = process.env.OWNER_NAME || 'Shizo The Techie'
+global.author = process.env.OWNER_NAME || 'Dornavan'
 global.botname = process.env.BOT_NAME || 'Walking chemical'
 global.oname = author
 global.bname = botname
