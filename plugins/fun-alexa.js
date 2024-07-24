@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 // Utility to count tokens (simplified)
 const countTokens = (text) => text.split(/\s+/).length;
 
-const MAX_TOKENS = 2024; // For GPT-3 Davinci
+const MAX_TOKENS = 1024; // For GPT-3 Davinci
 
 // Store conversations in memory (consider using a database for persistence)
 let conversationMemory = {};
