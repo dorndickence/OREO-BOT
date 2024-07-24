@@ -1,10 +1,43 @@
 import fetch from 'node-fetch';
 
-let handler = async (m, { conn, text, usedPrefix, command }) => {
+// Utility to count tokens (simplified)
+const countTokens = (text) => text.split(/\s+/).length;
+
+const MAX_TOKENS = 2024; // For GPT-3 Davinci
+
+// Store conversations in memory (consider using a database for persistence)
+let conversationMemory = {};
+
+const getTruncatedHistory = (history, newMessage, maxTokens) => {
+  let totalTokens = countTokens(newMessage);
+  const truncatedHistory = [];
+
+  // Iterate from the end to the beginning
+  for (let i = history.length - 1; i >= 0; i--) {
+    const { message, response } = history[i];
+    const messageTokens = countTokens(message);
+    const responseTokens = countTokens(response);
+
+    // Check if adding this message/response would exceed the max tokens
+    if (totalTokens + messageTokens + responseTokens > maxTokens) {
+      break; // Stop adding when max tokens would be exceeded
+    }
+
+    truncatedHistory.unshift({ message, response });
+    totalTokens += messageTokens + responseTokens;
+  }
+
+  return truncatedHistory;
+};
+
+let handler = async (m, { conn, text, usedPrefix, command, isGroup }) => {
   const name = conn.getName(m.sender);
 
-  if (!text) {
+  // Restrict prefix and command usage to group chats
+  if (isGroup && !text) {
     throw `Hi *${name}*, do you want to talk? Respond with *${usedPrefix + command}* (your message)\n\n📌 Example: *${usedPrefix + command}* Hi dornkimb`;
+  } else if (!isGroup && command) {
+    throw `The prefix and command are only for group chats.`;
   }
 
   m.react('🗣️');
@@ -25,6 +58,18 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
     }
 
     let reply = json.response.response;
+
+    // Store conversation in memory
+    if (!conversationMemory[m.sender]) {
+      conversationMemory[m.sender] = [];
+    }
+
+    // Get truncated history to ensure token limit is respected
+    conversationMemory[m.sender] = getTruncatedHistory(conversationMemory[m.sender], text, MAX_TOKENS);
+
+    // Add the latest message and response to the memory
+    conversationMemory[m.sender].push({ message: text, response: reply });
+
     m.reply(reply);
   } catch (error) {
     m.reply(`An error occurred: ${error.message}`);
