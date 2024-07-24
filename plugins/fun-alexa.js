@@ -34,9 +34,9 @@ let handler = async (m, { conn, text, usedPrefix, command, isGroup }) => {
   const name = conn.getName(m.sender);
 
   // Restrict prefix and command usage to group chats
-  if (isGroup && !text) {
+  if (m.isGroup && !text) {
     throw `Hi *${name}*, do you want to talk? Respond with *${usedPrefix + command}* (your message)\n\n📌 Example: *${usedPrefix + command}* Hi dornkimb`;
-  } else if (!isGroup && command) {
+  } else if (!m.isGroup && command) {
     throw `The prefix and command are only for group chats.`;
   }
 
