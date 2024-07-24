@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 // Utility to count tokens (simplified)
 const countTokens = (text) => text.split(/\s+/).length;
 
-const MAX_TOKENS = 2024; // For GPT-3 Davinci
+const MAX_TOKENS = 4097; // For GPT-3 Davinci
 
 // Store conversations in memory (consider using a database for persistence)
 let conversationMemory = {};
@@ -30,7 +30,7 @@ const getTruncatedHistory = (history, newMessage, maxTokens) => {
   return truncatedHistory;
 };
 
-let handler = async (m, { conn, text, usedPrefix, command, isGroup }) => {
+let handler = async (m, { conn, text, usedPrefix, command }) => {
   const name = conn.getName(m.sender);
 
   // Restrict prefix and command usage to group chats
