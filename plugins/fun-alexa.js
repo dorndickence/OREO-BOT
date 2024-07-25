@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 import mongoose from 'mongoose';
 
 // Connect to MongoDB using URL
-const mongoURL = 'your_mongodb_url_here';
+const mongoURL = 'mongodb+srv://dornbots:5s3Tcs9RdPqLTmij@dornbot.clhjn5v.mongodb.net/Workerchats?retryWrites=true&w=majority';
 mongoose.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
