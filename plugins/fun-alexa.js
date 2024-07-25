@@ -51,7 +51,10 @@ const getTruncatedHistory = (history, newMessage, maxTokens) => {
 };
 
 let handler = async (m) => {
+  console.log('Message received:', m.text);
+
   if (!m.text) {
+    console.log('No text in the message');
     return;
   }
 
@@ -59,6 +62,7 @@ let handler = async (m) => {
   const msg = encodeURIComponent(m.text);
 
   try {
+    console.log('Fetching response for:', msg);
     const res = await fetch(`https://worker-dry-cloud-dorn.dorndickence.workers.dev/?prompt=${msg}`);
 
     if (!res.ok) {
@@ -72,6 +76,7 @@ let handler = async (m) => {
     }
 
     let reply = json.response.response;
+    console.log('API response:', reply);
 
     // Fetch or create a conversation entry in MongoDB
     let conversation = await Conversation.findOne({ sender: m.sender });
@@ -87,9 +92,12 @@ let handler = async (m) => {
 
     // Save the conversation to MongoDB
     await conversation.save();
+    console.log('Conversation saved to MongoDB');
 
     m.reply(reply);
+    console.log('Replied to message');
   } catch (error) {
+    console.error('Error occurred:', error);
     m.reply(`An error occurred: ${error.message}`);
   }
 };
