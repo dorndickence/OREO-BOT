@@ -53,13 +53,31 @@ const getTruncatedHistory = (history, newMessage, maxTokens) => {
 let handler = async (m) => {
   console.log('Message received:', m.text);
 
-  if (!m.text) {
+  // Check if the message is from a group or private chat
+  const isGroupChat = m.isGroup;
+
+  // Check for command prefix if in group chat
+  const commandPrefix = isGroupChat ? '!' : ''; // Adjust your prefix here
+  const command = 'bot'; // Example command
+
+  // Extract text and check for command in group chats
+  let text = m.text;
+
+  if (isGroupChat && text.startsWith(commandPrefix)) {
+    // Remove prefix and command from the text
+    text = text.slice(commandPrefix.length + command.length).trim();
+  } else if (isGroupChat) {
+    // Ignore messages that don't start with the command prefix in group chats
+    return;
+  }
+
+  if (!text) {
     console.log('No text in the message');
     return;
   }
 
   const name = m.sender;
-  const msg = encodeURIComponent(m.text);
+  const msg = encodeURIComponent(text);
 
   try {
     console.log('Fetching response for:', msg);
@@ -85,10 +103,10 @@ let handler = async (m) => {
     }
 
     // Get truncated history to ensure token limit is respected
-    conversation.history = getTruncatedHistory(conversation.history, m.text, MAX_TOKENS);
+    conversation.history = getTruncatedHistory(conversation.history, text, MAX_TOKENS);
 
     // Add the latest message and response to the history
-    conversation.history.push({ message: m.text, response: reply });
+    conversation.history.push({ message: text, response: reply });
 
     // Save the conversation to MongoDB
     await conversation.save();
