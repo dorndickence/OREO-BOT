@@ -1,8 +1,10 @@
 import fetch from 'node-fetch';
 import mongoose from 'mongoose';
 
-// Connect to MongoDB using URL
+// MongoDB connection URL
 const mongoURL = 'mongodb+srv://dornbots:5s3Tcs9RdPqLTmij@dornbot.clhjn5v.mongodb.net/Workerchats?retryWrites=true&w=majority';
+
+// Connect to MongoDB
 mongoose.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
@@ -18,6 +20,7 @@ const conversationSchema = new mongoose.Schema({
   ],
 });
 
+// Create a model for conversations
 const Conversation = mongoose.model('Conversation', conversationSchema);
 
 // Utility to count tokens (simplified)
@@ -48,14 +51,11 @@ const getTruncatedHistory = (history, newMessage, maxTokens) => {
 };
 
 let handler = async (m) => {
-  const name = m.sender;
-
   if (!m.text) {
-    throw `Hi *${name}*, do you want to talk? Just send me a message.`;
+    return;
   }
 
-  m.react('🗣️');
-
+  const name = m.sender;
   const msg = encodeURIComponent(m.text);
 
   try {
@@ -92,7 +92,7 @@ let handler = async (m) => {
   } catch (error) {
     m.reply(`An error occurred: ${error.message}`);
   }
-}
+};
 
 // Exporting the handler for the bot
 export default handler;
