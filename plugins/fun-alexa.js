@@ -1,27 +1,11 @@
 import fetch from 'node-fetch';
-import mongoose from 'mongoose';
+import { MongoClient } from 'mongodb';
 
-// MongoDB connection URL
-const mongoURL = 'mongodb+srv://dornbots:5s3Tcs9RdPqLTmij@dornbot.clhjn5v.mongodb.net/Workerchats?retryWrites=true&w=majority';
-
-// Connect to MongoDB
-mongoose.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-// Define a schema and model for storing conversations
-const conversationSchema = new mongoose.Schema({
-  sender: String,
-  history: [
-    {
-      message: String,
-      response: String,
-    },
-  ],
-});
-
-// Create a model for conversations
-const Conversation = mongoose.model('Conversation', conversationSchema);
+// MongoDB setup
+const uri = 'mongodb+srv://dornbots:5s3Tcs9RdPqLTmij@dornbot.clhjn5v.mongodb.net/Workerchats?retryWrites=true&w=majority';
+const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+const dbName = 'chatbot';
+const collectionName = 'conversations';
 
 // Utility to count tokens (simplified)
 const countTokens = (text) => text.split(/\s+/).length;
@@ -50,37 +34,41 @@ const getTruncatedHistory = (history, newMessage, maxTokens) => {
   return truncatedHistory;
 };
 
-let handler = async (m) => {
-  console.log('Message received:', m.text);
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+  const name = conn.getName(m.sender);
 
   // Check if the message is from a group or private chat
   const isGroupChat = m.isGroup;
 
-  // Check for command prefix if in group chat
-  const commandPrefix = isGroupChat ? '!' : ''; // Adjust your prefix here
-  const command = 'bot'; // Example command
+  // Define prefix and command
+  const commandPrefix = '!';
+  const commandName = 'bot';
 
-  // Extract text and check for command in group chats
-  let text = m.text;
+  // Extract text and handle prefix and command in group chats
+  let messageText = text;
 
-  if (isGroupChat && text.startsWith(commandPrefix)) {
-    // Remove prefix and command from the text
-    text = text.slice(commandPrefix.length + command.length).trim();
-  } else if (isGroupChat) {
-    // Ignore messages that don't start with the command prefix in group chats
-    return;
+  if (isGroupChat) {
+    if (messageText.startsWith(commandPrefix)) {
+      messageText = messageText.slice(commandPrefix.length).trim();
+      if (messageText.startsWith(commandName)) {
+        messageText = messageText.slice(commandName.length).trim();
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
   }
 
-  if (!text) {
-    console.log('No text in the message');
-    return;
+  if (!messageText) {
+    throw `Hi *${name}*, do you want to talk? Respond with *${usedPrefix + commandName}* (your message)\n\n📌 Example: *${usedPrefix + commandName}* Hi dornkimb`;
   }
 
-  const name = m.sender;
-  const msg = encodeURIComponent(text);
+  m.react('🗣️');
+
+  const msg = encodeURIComponent(messageText);
 
   try {
-    console.log('Fetching response for:', msg);
     const res = await fetch(`https://worker-dry-cloud-dorn.dorndickence.workers.dev/?prompt=${msg}`);
 
     if (!res.ok) {
@@ -94,31 +82,41 @@ let handler = async (m) => {
     }
 
     let reply = json.response.response;
-    console.log('API response:', reply);
 
-    // Fetch or create a conversation entry in MongoDB
-    let conversation = await Conversation.findOne({ sender: m.sender });
-    if (!conversation) {
-      conversation = new Conversation({ sender: m.sender, history: [] });
-    }
+    // Connect to MongoDB
+    await client.connect();
+    const db = client.db(dbName);
+    const collection = db.collection(collectionName);
+
+    // Fetch conversation history from MongoDB
+    const userConversation = await collection.findOne({ userId: m.sender });
+
+    // Initialize conversation memory if not present
+    let conversationHistory = userConversation ? userConversation.history : [];
 
     // Get truncated history to ensure token limit is respected
-    conversation.history = getTruncatedHistory(conversation.history, text, MAX_TOKENS);
+    conversationHistory = getTruncatedHistory(conversationHistory, messageText, MAX_TOKENS);
 
     // Add the latest message and response to the history
-    conversation.history.push({ message: text, response: reply });
+    conversationHistory.push({ message: messageText, response: reply });
 
-    // Save the conversation to MongoDB
-    await conversation.save();
-    console.log('Conversation saved to MongoDB');
+    // Update the conversation history in MongoDB
+    await collection.updateOne(
+      { userId: m.sender },
+      { $set: { history: conversationHistory } },
+      { upsert: true }
+    );
 
     m.reply(reply);
-    console.log('Replied to message');
   } catch (error) {
-    console.error('Error occurred:', error);
     m.reply(`An error occurred: ${error.message}`);
+  } finally {
+    await client.close();
   }
-};
+}
 
-// Exporting the handler for the bot
+handler.help = ['bot'];
+handler.tags = ['fun'];
+handler.command = ['bot', 'gpt'];
+
 export default handler;
