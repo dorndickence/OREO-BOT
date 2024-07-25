@@ -1,12 +1,29 @@
 import fetch from 'node-fetch';
+import mongoose from 'mongoose';
+
+// Connect to MongoDB using URL
+const mongoURL = 'your_mongodb_url_here';
+mongoose.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// Define a schema and model for storing conversations
+const conversationSchema = new mongoose.Schema({
+  sender: String,
+  history: [
+    {
+      message: String,
+      response: String,
+    },
+  ],
+});
+
+const Conversation = mongoose.model('Conversation', conversationSchema);
 
 // Utility to count tokens (simplified)
 const countTokens = (text) => text.split(/\s+/).length;
 
 const MAX_TOKENS = 1024; // For GPT-3 Davinci
-
-// Store conversations in memory (consider using a database for persistence)
-let conversationMemory = {};
 
 const getTruncatedHistory = (history, newMessage, maxTokens) => {
   let totalTokens = countTokens(newMessage);
@@ -30,16 +47,16 @@ const getTruncatedHistory = (history, newMessage, maxTokens) => {
   return truncatedHistory;
 };
 
-let handler = async (m, { conn, text, usedPrefix, command }) => {
-  const name = conn.getName(m.sender);
+let handler = async (m) => {
+  const name = m.sender;
 
-  if (!text) {
-    throw `Hi *${name}*, do you want to talk? Respond with *${usedPrefix + command}* (your message)\n\n📌 Example: *${usedPrefix + command}* Hi dornkimb`;
+  if (!m.text) {
+    throw `Hi *${name}*, do you want to talk? Just send me a message.`;
   }
 
   m.react('🗣️');
 
-  const msg = encodeURIComponent(text);
+  const msg = encodeURIComponent(m.text);
 
   try {
     const res = await fetch(`https://worker-dry-cloud-dorn.dorndickence.workers.dev/?prompt=${msg}`);
@@ -56,16 +73,20 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
     let reply = json.response.response;
 
-    // Store conversation in memory
-    if (!conversationMemory[m.sender]) {
-      conversationMemory[m.sender] = [];
+    // Fetch or create a conversation entry in MongoDB
+    let conversation = await Conversation.findOne({ sender: m.sender });
+    if (!conversation) {
+      conversation = new Conversation({ sender: m.sender, history: [] });
     }
 
     // Get truncated history to ensure token limit is respected
-    conversationMemory[m.sender] = getTruncatedHistory(conversationMemory[m.sender], text, MAX_TOKENS);
+    conversation.history = getTruncatedHistory(conversation.history, m.text, MAX_TOKENS);
 
-    // Add the latest message and response to the memory
-    conversationMemory[m.sender].push({ message: text, response: reply });
+    // Add the latest message and response to the history
+    conversation.history.push({ message: m.text, response: reply });
+
+    // Save the conversation to MongoDB
+    await conversation.save();
 
     m.reply(reply);
   } catch (error) {
@@ -73,8 +94,5 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
   }
 }
 
-handler.help = ['bot'];
-handler.tags = ['fun'];
-handler.command = ['bot', 'gpt'];
-
+// Exporting the handler for the bot
 export default handler;
