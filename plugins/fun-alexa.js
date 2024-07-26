@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 
+// Handler for the 'bot' and 'alexa' commands
 let handler = async (m, { conn, text, usedPrefix, command }) => {
   const name = conn.getName(m.sender);
   if (!text) {
@@ -11,8 +12,16 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
   try {
     const msg = encodeURIComponent(text);
 
+    console.log(`Sending request to API with message: ${msg}`);
     const res = await fetch(`https://worker-dry-cloud-dorn.dorndickence.workers.dev/?prompt=${msg}`);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! Status: ${res.status}`);
+    }
+    
     const json = await res.json();
+
+    console.log('API response:', json);
 
     if (json.result && json.result.response) {
       let reply = json.result.response;
@@ -21,12 +30,12 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
       m.reply('Sorry, I could not get a response from the server.');
     }
   } catch (error) {
-    console.error(error);
+    console.error('Error processing request:', error);
     m.reply('There was an error processing your request.');
   }
 };
 
-// New function to handle PM messages
+// Function to handle PM messages without prefix
 let autoReplyPM = async (m, { conn }) => {
   const name = conn.getName(m.sender);
   const defaultReply = `Hi *${name}*, how can I assist you today?`;
@@ -54,3 +63,5 @@ handler.tags = ['fun'];
 handler.command = ['bot', 'alexa'];
 
 export default handler;
+
+
