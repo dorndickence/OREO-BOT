@@ -8,14 +8,22 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
   m.react('🗣️');
 
-  const msg = encodeURIComponent(text);
+  try {
+    const msg = encodeURIComponent(text);
 
-  const res = await fetch(`https://worker-dry-cloud-dorn.dorndickence.workers.dev/?prompt=${msg}`);
+    const res = await fetch(`https://worker-dry-cloud-dorn.dorndickence.workers.dev/?prompt=${msg}`);
+    const json = await res.json();
 
-  const json = await res.json();
-
-  let reply = json.result.response;
-  m.reply(reply);
+    if (json.result && json.result.response) {
+      let reply = json.result.response;
+      m.reply(reply);
+    } else {
+      m.reply('Sorry, I could not get a response from the server.');
+    }
+  } catch (error) {
+    console.error(error);
+    m.reply('There was an error processing your request.');
+  }
 };
 
 // New function to handle PM messages
